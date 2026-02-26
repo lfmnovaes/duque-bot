@@ -37,7 +37,14 @@ export default defineSchema({
     timestamp: v.number(),
   })
     .index("by_channel_trigger", ["channelId", "trigger"])
-    .index("by_channel_timestamp", ["channelId", "timestamp"]),
+    .index("by_channel_timestamp", ["channelId", "timestamp"])
+    .index("by_timestamp", ["timestamp"]),
+
+  appMeta: defineTable({
+    key: v.string(),
+    commandHistoryCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   approvedGuilds: defineTable({
     guildId: v.string(),

@@ -12,6 +12,7 @@ import type * as channelConfig from "../channelConfig.js";
 import type * as commandHistory from "../commandHistory.js";
 import type * as commands from "../commands.js";
 import type * as guilds from "../guilds.js";
+import type * as logging from "../logging.js";
 
 import type {
   ApiFromModules,
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   commandHistory: typeof commandHistory;
   commands: typeof commands;
   guilds: typeof guilds;
+  logging: typeof logging;
 }>;
 
 /**

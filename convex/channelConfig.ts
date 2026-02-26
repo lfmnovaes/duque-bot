@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
+import { logDbWrite } from "./logging.js";
 
 export const getConfig = query({
   args: {
@@ -36,14 +37,29 @@ export const addEditorRole = mutation({
         editorRoleIds: [...existing.editorRoleIds, args.roleId],
         updatedAt: now,
       });
+      logDbWrite("channelConfigs", "patch", {
+        configId: existing._id,
+        channelId: args.channelId,
+        guildId: existing.guildId,
+        action: "addEditorRole",
+        roleId: args.roleId,
+        roleCount: existing.editorRoleIds.length + 1,
+      });
     } else {
-      await ctx.db.insert("channelConfigs", {
+      const configId = await ctx.db.insert("channelConfigs", {
         channelId: args.channelId,
         guildId: args.guildId,
         editorRoleIds: [args.roleId],
         triggerPrefix: "!",
         createdAt: now,
         updatedAt: now,
+      });
+      logDbWrite("channelConfigs", "insert", {
+        configId,
+        channelId: args.channelId,
+        guildId: args.guildId,
+        action: "addEditorRole",
+        roleId: args.roleId,
       });
     }
 
@@ -70,14 +86,28 @@ export const setTriggerPrefix = mutation({
         triggerPrefix: args.triggerPrefix,
         updatedAt: now,
       });
+      logDbWrite("channelConfigs", "patch", {
+        configId: existing._id,
+        channelId: args.channelId,
+        guildId: existing.guildId,
+        action: "setTriggerPrefix",
+        triggerPrefix: args.triggerPrefix,
+      });
     } else {
-      await ctx.db.insert("channelConfigs", {
+      const configId = await ctx.db.insert("channelConfigs", {
         channelId: args.channelId,
         guildId: args.guildId,
         editorRoleIds: [],
         triggerPrefix: args.triggerPrefix,
         createdAt: now,
         updatedAt: now,
+      });
+      logDbWrite("channelConfigs", "insert", {
+        configId,
+        channelId: args.channelId,
+        guildId: args.guildId,
+        action: "setTriggerPrefix",
+        triggerPrefix: args.triggerPrefix,
       });
     }
 
@@ -110,6 +140,14 @@ export const removeEditorRole = mutation({
       ),
       updatedAt: Date.now(),
     });
+    logDbWrite("channelConfigs", "patch", {
+      configId: existing._id,
+      channelId: args.channelId,
+      guildId: existing.guildId,
+      action: "removeEditorRole",
+      roleId: args.roleId,
+      roleCount: existing.editorRoleIds.length - 1,
+    });
 
     return { success: true } as const;
   },
@@ -127,6 +165,11 @@ export const deleteConfig = mutation({
 
     if (existing) {
       await ctx.db.delete(existing._id);
+      logDbWrite("channelConfigs", "delete", {
+        configId: existing._id,
+        channelId: args.channelId,
+        guildId: existing.guildId,
+      });
     }
 
     return { success: true } as const;

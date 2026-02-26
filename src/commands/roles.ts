@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireAdminPermission } from "../services/auth.js";
-import { getConvexClient } from "../services/convex.js";
+import { getConvexClient, mutationWithLog } from "../services/convex.js";
 import type { SlashCommand } from "../types/index.js";
 
 export const rolesCommand: SlashCommand = {
@@ -54,11 +54,21 @@ export const rolesCommand: SlashCommand = {
       case "add": {
         const role = interaction.options.getRole("role", true);
 
-        const result = await convex.mutation(api.channelConfig.addEditorRole, {
-          channelId,
-          guildId,
-          roleId: role.id,
-        });
+        const result = await mutationWithLog(
+          "channelConfig.addEditorRole",
+          {
+            writeType: "insert_or_update",
+            channelId,
+            guildId,
+            roleId: role.id,
+          },
+          () =>
+            convex.mutation(api.channelConfig.addEditorRole, {
+              channelId,
+              guildId,
+              roleId: role.id,
+            }),
+        );
 
         if (!result.success) {
           await interaction.reply({
@@ -78,12 +88,18 @@ export const rolesCommand: SlashCommand = {
       case "remove": {
         const role = interaction.options.getRole("role", true);
 
-        const result = await convex.mutation(
-          api.channelConfig.removeEditorRole,
+        const result = await mutationWithLog(
+          "channelConfig.removeEditorRole",
           {
+            writeType: "update",
             channelId,
             roleId: role.id,
           },
+          () =>
+            convex.mutation(api.channelConfig.removeEditorRole, {
+              channelId,
+              roleId: role.id,
+            }),
         );
 
         if (!result.success) {

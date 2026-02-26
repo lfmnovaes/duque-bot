@@ -6,7 +6,7 @@ import {
 } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { env } from "../config/env.js";
-import { getConvexClient } from "../services/convex.js";
+import { getConvexClient, mutationWithLog } from "../services/convex.js";
 
 const OWNER_PREFIX = "!owner";
 
@@ -137,10 +137,19 @@ async function handleBlacklistServer(
     const guildName = guild?.name ?? `Guild ${guildId}`;
 
     const convex = getConvexClient();
-    const result = await convex.mutation(api.guilds.blacklistGuild, {
-      guildId,
-      guildName,
-    });
+    const result = await mutationWithLog(
+      "guilds.blacklistGuild",
+      {
+        writeType: "insert_or_update",
+        guildId,
+        guildName,
+      },
+      () =>
+        convex.mutation(api.guilds.blacklistGuild, {
+          guildId,
+          guildName,
+        }),
+    );
 
     if (result.alreadyBlacklisted) {
       await message.reply(`⚠️ Server \`${guildId}\` is already blacklisted.`);
@@ -168,9 +177,17 @@ async function handleUnblacklistServer(
 
   try {
     const convex = getConvexClient();
-    const result = await convex.mutation(api.guilds.unblacklistGuild, {
-      guildId,
-    });
+    const result = await mutationWithLog(
+      "guilds.unblacklistGuild",
+      {
+        writeType: "update",
+        guildId,
+      },
+      () =>
+        convex.mutation(api.guilds.unblacklistGuild, {
+          guildId,
+        }),
+    );
 
     if (!result.success) {
       const reason =
@@ -200,15 +217,43 @@ async function handleLeaveChannel(
   try {
     const convex = getConvexClient();
 
-    // Delete channel config and all commands
-    await convex.mutation(api.channelConfig.deleteConfig, { channelId });
-    const result = await convex.mutation(api.commands.removeAllByChannel, {
-      channelId,
-      actorUserId: env.BOT_OWNER_ID,
-    });
+    // Remove commands in batches to avoid large single-mutation workloads.
+    let totalDeleted = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await mutationWithLog(
+        "commands.removeAllByChannel",
+        {
+          writeType: "batch_delete",
+          channelId,
+          actorUserId: env.BOT_OWNER_ID,
+        },
+        () =>
+          convex.mutation(api.commands.removeAllByChannel, {
+            channelId,
+            actorUserId: env.BOT_OWNER_ID,
+          }),
+      );
+      totalDeleted += batch.deleted;
+      hasMore = batch.hasMore;
+    }
+
+    // Remove channel config after commands are cleaned.
+    await mutationWithLog(
+      "channelConfig.deleteConfig",
+      {
+        writeType: "delete",
+        channelId,
+      },
+      () =>
+        convex.mutation(api.channelConfig.deleteConfig, {
+          channelId,
+        }),
+    );
 
     await message.reply(
-      `✅ Cleared channel \`${channelId}\`: removed config and ${result.deleted} command(s).`,
+      `✅ Cleared channel \`${channelId}\`: removed config and ${totalDeleted} command(s).`,
     );
   } catch (error) {
     console.error("[owner] Error clearing channel:", error);

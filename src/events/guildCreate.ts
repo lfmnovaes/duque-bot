@@ -1,6 +1,6 @@
 import type { Guild } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
-import { getConvexClient } from "../services/convex.js";
+import { getConvexClient, mutationWithLog } from "../services/convex.js";
 
 /**
  * Handle the bot being added to a new guild.
@@ -10,10 +10,19 @@ export async function handleGuildCreate(guild: Guild): Promise<void> {
   const convex = getConvexClient();
 
   try {
-    const result = await convex.mutation(api.guilds.registerGuildJoin, {
-      guildId: guild.id,
-      guildName: guild.name,
-    });
+    const result = await mutationWithLog(
+      "guilds.registerGuildJoin",
+      {
+        writeType: "insert_or_update",
+        guildId: guild.id,
+        guildName: guild.name,
+      },
+      () =>
+        convex.mutation(api.guilds.registerGuildJoin, {
+          guildId: guild.id,
+          guildName: guild.name,
+        }),
+    );
 
     if (result.allowed) {
       console.log(

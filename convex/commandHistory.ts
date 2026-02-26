@@ -22,13 +22,16 @@ export const getHistoryForTrigger = query({
   args: {
     channelId: v.string(),
     trigger: v.string(),
+    limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const limit = args.limit ?? 100;
     return await ctx.db
       .query("commandHistory")
-      .withIndex("by_channel_trigger", (q) => q.eq("channelId", args.channelId))
-      .filter((q) => q.eq(q.field("trigger"), args.trigger))
+      .withIndex("by_channel_trigger", (q) =>
+        q.eq("channelId", args.channelId).eq("trigger", args.trigger),
+      )
       .order("desc")
-      .collect();
+      .take(limit);
   },
 });

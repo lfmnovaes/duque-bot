@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireAdminPermission } from "../services/auth.js";
-import { getConvexClient } from "../services/convex.js";
+import { getConvexClient, mutationWithLog } from "../services/convex.js";
 import type { SlashCommand } from "../types/index.js";
 
 const ALLOWED_TRIGGER_PREFIX = /^[!@#$%^&*()_+\-=[\]{}|;:,.?~]$/;
@@ -45,11 +45,21 @@ export const triggerCommand: SlashCommand = {
     }
 
     const convex = getConvexClient();
-    await convex.mutation(api.channelConfig.setTriggerPrefix, {
-      channelId: interaction.channelId,
-      guildId,
-      triggerPrefix: prefix,
-    });
+    await mutationWithLog(
+      "channelConfig.setTriggerPrefix",
+      {
+        writeType: "insert_or_update",
+        channelId: interaction.channelId,
+        guildId,
+        triggerPrefix: prefix,
+      },
+      () =>
+        convex.mutation(api.channelConfig.setTriggerPrefix, {
+          channelId: interaction.channelId,
+          guildId,
+          triggerPrefix: prefix,
+        }),
+    );
 
     await interaction.reply({
       content:

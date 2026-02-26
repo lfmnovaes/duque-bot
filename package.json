@@ -1,6 +1,6 @@
 {
     "name": "duque-bot",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A Discord bot with channel-scoped custom commands, Convex persistence, and owner management via DM.",
     "main": "dist/src/index.js",
     "type": "module",

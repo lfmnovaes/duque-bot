@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireCommandPermission } from "../services/auth.js";
-import { getConvexClient } from "../services/convex.js";
+import { getConvexClient, mutationWithLog } from "../services/convex.js";
 import type { SlashCommand } from "../types/index.js";
 
 export const commandCommand: SlashCommand = {
@@ -80,12 +80,23 @@ export const commandCommand: SlashCommand = {
           .trim();
         const response = interaction.options.getString("response", true);
 
-        const result = await convex.mutation(api.commands.addCommand, {
-          channelId,
-          trigger,
-          response,
-          actorUserId: userId,
-        });
+        const result = await mutationWithLog(
+          "commands.addCommand",
+          {
+            writeType: "insert",
+            channelId,
+            trigger,
+            actorUserId: userId,
+            responseLength: response.length,
+          },
+          () =>
+            convex.mutation(api.commands.addCommand, {
+              channelId,
+              trigger,
+              response,
+              actorUserId: userId,
+            }),
+        );
 
         if (!result.success) {
           await interaction.reply({
@@ -109,12 +120,23 @@ export const commandCommand: SlashCommand = {
           .trim();
         const response = interaction.options.getString("response", true);
 
-        const result = await convex.mutation(api.commands.editCommand, {
-          channelId,
-          trigger,
-          newResponse: response,
-          actorUserId: userId,
-        });
+        const result = await mutationWithLog(
+          "commands.editCommand",
+          {
+            writeType: "update",
+            channelId,
+            trigger,
+            actorUserId: userId,
+            newResponseLength: response.length,
+          },
+          () =>
+            convex.mutation(api.commands.editCommand, {
+              channelId,
+              trigger,
+              newResponse: response,
+              actorUserId: userId,
+            }),
+        );
 
         if (!result.success) {
           await interaction.reply({
@@ -137,11 +159,21 @@ export const commandCommand: SlashCommand = {
           .toLowerCase()
           .trim();
 
-        const result = await convex.mutation(api.commands.removeCommand, {
-          channelId,
-          trigger,
-          actorUserId: userId,
-        });
+        const result = await mutationWithLog(
+          "commands.removeCommand",
+          {
+            writeType: "delete",
+            channelId,
+            trigger,
+            actorUserId: userId,
+          },
+          () =>
+            convex.mutation(api.commands.removeCommand, {
+              channelId,
+              trigger,
+              actorUserId: userId,
+            }),
+        );
 
         if (!result.success) {
           await interaction.reply({

@@ -10,29 +10,15 @@ export async function handleTrigger(message: Message): Promise<void> {
   const convex = getConvexClient();
 
   try {
-    const config = await convex.query(api.channelConfig.getConfig, {
+    const resolved = await convex.query(api.commands.resolveTriggerResponse, {
       channelId: message.channelId,
-    });
-    const triggerPrefix = config?.triggerPrefix ?? "!";
-    if (!message.content.startsWith(triggerPrefix)) return;
-
-    const trigger = message.content
-      .slice(triggerPrefix.length)
-      .split(/\s/)[0]
-      .toLowerCase()
-      .trim();
-
-    if (!trigger) return;
-
-    const command = await convex.query(api.commands.getCommand, {
-      channelId: message.channelId,
-      trigger,
+      content: message.content,
     });
 
-    if (command) {
+    if (resolved) {
       const channel = message.channel;
       if ("send" in channel && typeof channel.send === "function") {
-        await channel.send(command.currentResponse);
+        await channel.send(resolved.response);
       }
     }
   } catch (error) {
