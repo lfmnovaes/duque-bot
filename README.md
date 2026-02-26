@@ -173,18 +173,27 @@ npm run dev
 ### Build and Run
 
 ```bash
-# Recommended: rebuild + recreate containers from current branch code
+# Option A (requires Node on host): npm script alias
 npm run docker:up
+
+# Option B (Docker-only, no Node/npm required):
+docker compose up -d --build --force-recreate --remove-orphans
 ```
 
 ### Docker Compose
 
 ```bash
-# Start/update with latest local branch changes
+# Start/update with latest local branch changes (npm alias)
 npm run docker:up
 
 # Force a totally fresh image build (no cache, pulls latest base image)
 npm run docker:up:fresh
+
+# Docker-only equivalents (no Node/npm on host):
+docker compose up -d --build --force-recreate --remove-orphans
+docker compose build --pull --no-cache && docker compose up -d --force-recreate --remove-orphans
+docker compose down --remove-orphans
+docker compose down --remove-orphans --rmi local
 
 # View logs
 docker compose logs -f bot
@@ -199,8 +208,12 @@ npm run docker:down:clean
 Best practice for "always latest in current branch":
 
 1. `git pull` (or ensure branch is at desired commit)
-2. `npm run docker:up`
-3. If you suspect cache issues after Dockerfile/dependency changes: `npm run docker:up:fresh`
+2. Run either:
+   - `npm run docker:up` (if Node/npm exists on host), or
+   - `docker compose up -d --build --force-recreate --remove-orphans` (Docker-only)
+3. If you suspect cache issues after Dockerfile/dependency changes:
+   - `npm run docker:up:fresh`, or
+   - `docker compose build --pull --no-cache && docker compose up -d --force-recreate --remove-orphans`
 
 Avoid plain `docker compose up` for deployments because it may reuse an existing image without rebuilding.
 

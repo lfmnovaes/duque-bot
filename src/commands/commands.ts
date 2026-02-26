@@ -57,23 +57,16 @@ export const commandsCommand: SlashCommand = {
     );
     const list = sortedCommands
       .map((cmd: CommandListItem) => {
-        const createdAt = formatDiscordTimestamp(cmd.createdAt);
-        const updatedAt = formatDiscordTimestamp(cmd.updatedAt);
-        return (
-          `• \`${triggerPrefix}${cmd.trigger}\`\n` +
-          `  Added by <@${cmd.createdByUserId}> on ${createdAt}\n` +
-          `  Latest update by <@${cmd.updatedByUserId}> on ${updatedAt}`
-        );
+        const createdAt = formatDiscordDate(cmd.createdAt);
+        const updatedAt = formatDiscordDate(cmd.updatedAt);
+        return `• \`${triggerPrefix}${cmd.trigger}\` | + <@${cmd.createdByUserId}> ${createdAt} | ~ <@${cmd.updatedByUserId}> ${updatedAt}`;
       })
-      .join("\n\n");
+      .join("\n");
 
-    const channelName =
-      interaction.channel && "name" in interaction.channel
-        ? interaction.channel.name
-        : interaction.channelId;
+    const serverName = interaction.guild?.name ?? interaction.guildId;
 
     const message =
-      `📋 **Listing all commands from '${channelName}' (${commands.length})**\n\n` +
+      `📋 **Listing all commands from '${serverName}' (${commands.length})**\n\n` +
       list;
     const chunks = splitMessage(message, DISCORD_MESSAGE_LIMIT);
 
@@ -142,7 +135,7 @@ function splitMessage(text: string, maxLength: number): string[] {
   return chunks;
 }
 
-function formatDiscordTimestamp(timestampMs: number): string {
+function formatDiscordDate(timestampMs: number): string {
   const unix = Math.floor(timestampMs / 1000);
-  return `<t:${unix}:F>`;
+  return `<t:${unix}:d>`;
 }
