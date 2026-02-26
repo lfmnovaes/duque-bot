@@ -5,10 +5,18 @@ import type { SlashCommand } from "../types/index.js";
 
 const DISCORD_MESSAGE_LIMIT = 2000;
 
+type CommandListItem = {
+  trigger: string;
+  createdAt: number;
+  createdByUserId: string;
+  updatedAt: number;
+  updatedByUserId: string;
+};
+
 export const commandsCommand: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName("commands")
-    .setDescription("List all custom commands in this channel")
+    .setDescription("List all custom commands in this channel (metadata only)")
     .addBooleanOption((opt) =>
       opt
         .setName("dm")
@@ -44,14 +52,29 @@ export const commandsCommand: SlashCommand = {
       return;
     }
 
-    const list = commands
-      .map(
-        (cmd: { trigger: string; currentResponse: string }) =>
-          `• \`${triggerPrefix}${cmd.trigger}\` → ${cmd.currentResponse}`,
-      )
-      .join("\n");
+    const sortedCommands = [...commands].sort((a, b) =>
+      a.trigger.localeCompare(b.trigger),
+    );
+    const list = sortedCommands
+      .map((cmd: CommandListItem) => {
+        const createdAt = formatDiscordTimestamp(cmd.createdAt);
+        const updatedAt = formatDiscordTimestamp(cmd.updatedAt);
+        return (
+          `• \`${triggerPrefix}${cmd.trigger}\`\n` +
+          `  Added by <@${cmd.createdByUserId}> on ${createdAt}\n` +
+          `  Latest update by <@${cmd.updatedByUserId}> on ${updatedAt}`
+        );
+      })
+      .join("\n\n");
 
-    const message = `📋 **Commands in this channel** (${commands.length}):\n\n${list}`;
+    const channelName =
+      interaction.channel && "name" in interaction.channel
+        ? interaction.channel.name
+        : interaction.channelId;
+
+    const message =
+      `📋 **Listing all commands from '${channelName}' (${commands.length})**\n\n` +
+      list;
     const chunks = splitMessage(message, DISCORD_MESSAGE_LIMIT);
 
     if (sendViaDM) {
@@ -117,4 +140,9 @@ function splitMessage(text: string, maxLength: number): string[] {
   }
 
   return chunks;
+}
+
+function formatDiscordTimestamp(timestampMs: number): string {
+  const unix = Math.floor(timestampMs / 1000);
+  return `<t:${unix}:F>`;
 }

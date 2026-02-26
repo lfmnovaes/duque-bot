@@ -193,10 +193,18 @@ export const listCommands = query({
     channelId: v.string(),
   },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const commands = await ctx.db
       .query("customCommands")
       .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
       .collect();
+
+    return commands.map((command) => ({
+      trigger: command.trigger,
+      createdAt: command.createdAt,
+      createdByUserId: command.createdByUserId,
+      updatedAt: command.updatedAt,
+      updatedByUserId: command.updatedByUserId,
+    }));
   },
 });
 
