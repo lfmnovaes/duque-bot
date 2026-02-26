@@ -1,6 +1,6 @@
 {
     "name": "duque-bot",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "description": "A Discord bot with channel-scoped custom commands, Convex persistence, and owner management via DM.",
     "main": "dist/src/index.js",
     "type": "module",
@@ -8,6 +8,9 @@
         "dev": "tsx watch src/index.ts",
         "build": "tsc && mkdir -p dist/convex/_generated && cp convex/_generated/*.js dist/convex/_generated/",
         "start": "node dist/src/index.js",
+        "version:patch": "npm version patch --no-git-tag-version",
+        "version:minor": "npm version minor --no-git-tag-version",
+        "version:major": "npm version major --no-git-tag-version",
         "deploy-commands": "tsx src/deploy-commands.ts",
         "lint": "biome check .",
         "lint:fix": "biome check --write .",

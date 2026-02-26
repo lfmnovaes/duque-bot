@@ -21,6 +21,7 @@ A Discord bot with **channel-scoped custom commands**, **Convex cloud persistenc
 - [Quick Start](#quick-start)
 - [Discord Setup](#discord-setup)
 - [Environment Variables](#environment-variables)
+- [Versioning](#versioning)
 - [Running Locally](#running-locally)
 - [Running with Docker](#running-with-docker)
 - [Slash Commands](#slash-commands)
@@ -118,6 +119,25 @@ Owner commands are sent by DM (`!owner ...`), so make sure you have DMs enabled 
 | `CONVEX_URL` | Deployment URL from Convex dashboard | ✅ |
 | `BOT_OWNER_ID` | Discord user ID of the bot owner | ✅ |
 | `ENABLE_MESSAGE_CONTENT_INTENT` | Set `true` to enable `!trigger` and owner DM commands | Optional (default `false`) |
+
+---
+
+## Versioning
+
+- Keep the bot version in `package.json` (`version` field). This is the correct source of truth.
+- Follow semantic versioning:
+  - Patch (`x.y.Z`) for fixes/internal improvements
+  - Minor (`x.Y.z`) for new backward-compatible features
+  - Major (`X.y.z`) for breaking changes
+- Manual bump options:
+
+```bash
+npm run version:patch
+npm run version:minor
+npm run version:major
+```
+
+- On startup, the bot logs the running version (for example: `Starting Duque Bot v0.0.2` and `Bot online ... (v0.0.2)`).
 
 ---
 

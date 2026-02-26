@@ -1,5 +1,6 @@
 import { client } from "./bot.js";
 import { env } from "./config/env.js";
+import { APP_VERSION } from "./config/version.js";
 import { handleGuildCreate } from "./events/guildCreate.js";
 import { handleInteractionCreate } from "./events/interactionCreate.js";
 import { handleMessageCreate } from "./events/messageCreate.js";
@@ -38,7 +39,7 @@ process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 // ─── Login ───
-console.log("🚀 Starting Duque Bot...");
+console.log(`🚀 Starting Duque Bot v${APP_VERSION}...`);
 client.login(env.DISCORD_TOKEN).catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("Used disallowed intents")) {
