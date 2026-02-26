@@ -173,28 +173,36 @@ npm run dev
 ### Build and Run
 
 ```bash
-# Build the image
-docker build -t duque-bot .
-
-# Run with env file
-docker run --env-file .env duque-bot
+# Recommended: rebuild + recreate containers from current branch code
+npm run docker:up
 ```
 
 ### Docker Compose
 
 ```bash
-# Build and start
-docker compose up --build
+# Start/update with latest local branch changes
+npm run docker:up
 
-# Run in background
-docker compose up -d
+# Force a totally fresh image build (no cache, pulls latest base image)
+npm run docker:up:fresh
 
 # View logs
 docker compose logs -f bot
 
 # Stop
-docker compose down
+npm run docker:down
+
+# Stop and remove locally built images too
+npm run docker:down:clean
 ```
+
+Best practice for "always latest in current branch":
+
+1. `git pull` (or ensure branch is at desired commit)
+2. `npm run docker:up`
+3. If you suspect cache issues after Dockerfile/dependency changes: `npm run docker:up:fresh`
+
+Avoid plain `docker compose up` for deployments because it may reuse an existing image without rebuilding.
 
 ---
 
