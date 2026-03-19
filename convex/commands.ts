@@ -8,11 +8,6 @@ const COMMAND_HISTORY_MAX_ENTRIES = 1000;
 const COMMAND_HISTORY_META_KEY = "command_history_count";
 const REMOVE_ALL_BATCH_SIZE = 100;
 
-/** Replaces literal `\n` (backslash + n) with actual LF (U+000A). */
-function processResponseText(text: string): string {
-  return text.replace(/\\n/g, "\u000A");
-}
-
 type CommandHistoryAction = "CREATE" | "UPDATE" | "DELETE";
 
 type CommandHistoryInsert = {
@@ -234,12 +229,11 @@ export const addCommand = mutation({
     }
 
     const now = Date.now();
-    const response = processResponseText(args.response);
 
     const commandId = await ctx.db.insert("customCommands", {
       channelId: args.channelId,
       trigger: args.trigger,
-      currentResponse: response,
+      currentResponse: args.response,
       guildId: args.guildId,
       createdAt: now,
       createdByUserId: args.actorUserId,
@@ -252,7 +246,7 @@ export const addCommand = mutation({
       trigger: args.trigger,
       actorUserId: args.actorUserId,
       guildId: args.guildId,
-      responseLength: response.length,
+      responseLength: args.response.length,
     });
 
     let historyCounter: HistoryCounterState | null = null;
@@ -263,12 +257,12 @@ export const addCommand = mutation({
         channelId: args.channelId,
         trigger: args.trigger,
         action: "CREATE",
-        newResponse: response,
+        newResponse: args.response,
         actorUserId: args.actorUserId,
         timestamp: now,
       },
       {
-        responseLength: response.length,
+        responseLength: args.response.length,
       },
     ));
     await persistHistoryCounterState(ctx, historyCounter);
@@ -299,10 +293,9 @@ export const editCommand = mutation({
 
     const now = Date.now();
     const previousResponse = existing.currentResponse;
-    const newResponse = processResponseText(args.newResponse);
 
     await ctx.db.patch(existing._id, {
-      currentResponse: newResponse,
+      currentResponse: args.newResponse,
       guildId: args.guildId,
       updatedAt: now,
       updatedByUserId: args.actorUserId,
@@ -314,7 +307,7 @@ export const editCommand = mutation({
       actorUserId: args.actorUserId,
       guildId: args.guildId,
       previousResponseLength: previousResponse.length,
-      newResponseLength: newResponse.length,
+      newResponseLength: args.newResponse.length,
     });
 
     let historyCounter: HistoryCounterState | null = null;
@@ -326,13 +319,13 @@ export const editCommand = mutation({
         trigger: args.trigger,
         action: "UPDATE",
         previousResponse,
-        newResponse,
+        newResponse: args.newResponse,
         actorUserId: args.actorUserId,
         timestamp: now,
       },
       {
         previousResponseLength: previousResponse.length,
-        newResponseLength: newResponse.length,
+        newResponseLength: args.newResponse.length,
       },
     ));
     await persistHistoryCounterState(ctx, historyCounter);
