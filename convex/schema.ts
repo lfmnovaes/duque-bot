@@ -26,6 +26,7 @@ export default defineSchema({
 
   commandHistory: defineTable({
     channelId: v.string(),
+    guildId: v.optional(v.string()),
     trigger: v.string(),
     action: v.union(
       v.literal("CREATE"),

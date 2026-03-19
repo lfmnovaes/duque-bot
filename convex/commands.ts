@@ -12,6 +12,7 @@ type CommandHistoryAction = "CREATE" | "UPDATE" | "DELETE";
 
 type CommandHistoryInsert = {
   channelId: string;
+  guildId?: string;
   trigger: string;
   action: CommandHistoryAction;
   previousResponse?: string;
@@ -255,6 +256,7 @@ export const addCommand = mutation({
       historyCounter,
       {
         channelId: args.channelId,
+        guildId: args.guildId,
         trigger: args.trigger,
         action: "CREATE",
         newResponse: args.response,
@@ -316,6 +318,7 @@ export const editCommand = mutation({
       historyCounter,
       {
         channelId: args.channelId,
+        guildId: args.guildId,
         trigger: args.trigger,
         action: "UPDATE",
         previousResponse,
