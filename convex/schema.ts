@@ -13,6 +13,7 @@ export default defineSchema({
 
   customCommands: defineTable({
     channelId: v.string(),
+    guildId: v.optional(v.string()),
     trigger: v.string(),
     currentResponse: v.string(),
     createdAt: v.number(),

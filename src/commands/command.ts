@@ -68,6 +68,7 @@ export const commandCommand: SlashCommand = {
     const convex = getConvexClient();
     const channelId = interaction.channelId;
     const userId = interaction.user.id;
+    const guildId = interaction.guildId ?? undefined;
     const config = await convex.query(api.channelConfig.getConfig, {
       channelId,
     });
@@ -98,6 +99,7 @@ export const commandCommand: SlashCommand = {
               trigger,
               response,
               actorUserId: userId,
+              guildId,
             }),
         );
 
@@ -140,6 +142,7 @@ export const commandCommand: SlashCommand = {
               trigger,
               newResponse: response,
               actorUserId: userId,
+              guildId,
             }),
         );
 
