@@ -1,6 +1,7 @@
 import { SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireCommandPermission } from "../services/auth.js";
+import { processResponse } from "../services/command-response.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
 import type { SlashCommand } from "../types/index.js";
 
@@ -78,7 +79,9 @@ export const commandCommand: SlashCommand = {
           .getString("trigger", true)
           .toLowerCase()
           .trim();
-        const response = interaction.options.getString("response", true);
+        const response = processResponse(
+          interaction.options.getString("response", true),
+        );
 
         const result = await mutationWithLog(
           "commands.addCommand",
@@ -118,7 +121,9 @@ export const commandCommand: SlashCommand = {
           .getString("trigger", true)
           .toLowerCase()
           .trim();
-        const response = interaction.options.getString("response", true);
+        const response = processResponse(
+          interaction.options.getString("response", true),
+        );
 
         const result = await mutationWithLog(
           "commands.editCommand",
