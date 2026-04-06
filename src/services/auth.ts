@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, GuildMember } from "discord.js";
+import { type ChatInputCommandInteraction, GuildMember } from "discord.js";
 import { canManageCommands, isAdmin } from "./permissions.js";
 
 /**
@@ -16,7 +16,8 @@ export async function requireCommandPermission(
     return false;
   }
 
-  const member = interaction.member as GuildMember;
+  const member =
+    interaction.member instanceof GuildMember ? interaction.member : null;
   const userId = interaction.user.id;
   const channelId = interaction.channelId;
 
@@ -49,7 +50,8 @@ export async function requireAdminPermission(
     return false;
   }
 
-  const member = interaction.member as GuildMember;
+  const member =
+    interaction.member instanceof GuildMember ? interaction.member : null;
   const userId = interaction.user.id;
 
   if (!isAdmin(member, userId)) {

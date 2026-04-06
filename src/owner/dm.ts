@@ -7,6 +7,7 @@ import {
 import { api } from "../../convex/_generated/api.js";
 import { env } from "../config/env.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
+import { splitMessage } from "../services/message.js";
 
 const OWNER_PREFIX = "!owner";
 
@@ -288,22 +289,4 @@ async function handleHelp(message: Message): Promise<void> {
       `\`!owner approve <guildId>\` – Alias for unblacklist-server\n` +
       `\`!owner help\` – Show this message`,
   );
-}
-
-function splitMessage(text: string, maxLength: number): string[] {
-  const chunks: string[] = [];
-  let current = text;
-
-  while (current.length > maxLength) {
-    let splitIndex = current.lastIndexOf("\n", maxLength);
-    if (splitIndex === -1) splitIndex = maxLength;
-    chunks.push(current.slice(0, splitIndex));
-    current = current.slice(splitIndex);
-  }
-
-  if (current.length > 0) {
-    chunks.push(current);
-  }
-
-  return chunks;
 }

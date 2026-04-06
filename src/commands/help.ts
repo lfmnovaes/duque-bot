@@ -1,7 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
+import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
 import type { SlashCommand } from "../types/index.js";
-
-const DISCORD_MESSAGE_LIMIT = 2000;
 
 export const helpCommand: SlashCommand = {
   data: new SlashCommandBuilder()
@@ -19,6 +18,7 @@ export const helpCommand: SlashCommand = {
     const message =
       "📘 **Supported bot commands**\n\n" +
       "• `/command add|edit|remove` - Create, update, or delete custom commands for this channel.\n" +
+      "• `/command info` - View details about a trigger (response, character count, who created/edited and when).\n" +
       "• `/commands` - List custom commands from this channel with metadata (who created/updated and when).\n" +
       "• `/roles add|remove|list` - Manage editor roles for command management in this channel (admin only).\n" +
       "• `/trigger` - Set the one-character trigger prefix for this channel (admin only).\n" +
@@ -62,25 +62,3 @@ export const helpCommand: SlashCommand = {
     }
   },
 };
-
-function splitMessage(text: string, maxLength: number): string[] {
-  if (text.length <= maxLength) return [text];
-
-  const chunks: string[] = [];
-  let current = text;
-
-  while (current.length > maxLength) {
-    let splitIndex = current.lastIndexOf("\n", maxLength);
-    if (splitIndex <= 0) {
-      splitIndex = maxLength;
-    }
-    chunks.push(current.slice(0, splitIndex));
-    current = current.slice(splitIndex).trimStart();
-  }
-
-  if (current.length > 0) {
-    chunks.push(current);
-  }
-
-  return chunks;
-}

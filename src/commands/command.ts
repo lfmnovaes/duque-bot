@@ -1,8 +1,12 @@
 import { SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireCommandPermission } from "../services/auth.js";
-import { processResponse } from "../services/command-response.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
+import {
+  DISCORD_MESSAGE_LIMIT,
+  decodeLineBreaks,
+  encodeLineBreaks,
+} from "../services/message.js";
 import type { SlashCommand } from "../types/index.js";
 
 export const commandCommand: SlashCommand = {
@@ -25,7 +29,7 @@ export const commandCommand: SlashCommand = {
             .setName("response")
             .setDescription("The response the bot will send")
             .setRequired(true)
-            .setMaxLength(2000),
+            .setMaxLength(4000),
         ),
     )
     .addSubcommand((sub) =>
@@ -44,7 +48,7 @@ export const commandCommand: SlashCommand = {
             .setName("response")
             .setDescription("The new response")
             .setRequired(true)
-            .setMaxLength(2000),
+            .setMaxLength(4000),
         ),
     )
     .addSubcommand((sub) =>
@@ -58,13 +62,35 @@ export const commandCommand: SlashCommand = {
             .setRequired(true)
             .setMaxLength(50),
         ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("info")
+        .setDescription("View details about a trigger (only visible to you)")
+        .addStringOption((opt) =>
+          opt
+            .setName("trigger")
+            .setDescription("The trigger word to inspect")
+            .setRequired(true)
+            .setMaxLength(50),
+        ),
     ),
 
   async execute(interaction) {
-    const allowed = await requireCommandPermission(interaction);
-    if (!allowed) return;
-
     const subcommand = interaction.options.getSubcommand();
+
+    // info is read-only, no permission gate needed
+    if (subcommand !== "info") {
+      const allowed = await requireCommandPermission(interaction);
+      if (!allowed) return;
+    } else if (!interaction.inGuild()) {
+      await interaction.reply({
+        content: "❌ This command can only be used in a server channel.",
+        flags: ["Ephemeral"],
+      });
+      return;
+    }
+
     const convex = getConvexClient();
     const channelId = interaction.channelId;
     const userId = interaction.user.id;
@@ -80,7 +106,7 @@ export const commandCommand: SlashCommand = {
           .getString("trigger", true)
           .toLowerCase()
           .trim();
-        const response = processResponse(
+        const response = encodeLineBreaks(
           interaction.options.getString("response", true),
         );
 
@@ -123,7 +149,7 @@ export const commandCommand: SlashCommand = {
           .getString("trigger", true)
           .toLowerCase()
           .trim();
-        const response = processResponse(
+        const response = encodeLineBreaks(
           interaction.options.getString("response", true),
         );
 
@@ -193,6 +219,67 @@ export const commandCommand: SlashCommand = {
 
         await interaction.reply({
           content: `✅ Command \`${triggerPrefix}${trigger}\` has been removed from this channel.`,
+          flags: ["Ephemeral"],
+        });
+        break;
+      }
+
+      case "info": {
+        const trigger = interaction.options
+          .getString("trigger", true)
+          .toLowerCase()
+          .trim();
+
+        const command = await convex.query(api.commands.getCommand, {
+          channelId,
+          trigger,
+        });
+
+        if (!command) {
+          await interaction.reply({
+            content: `❌ The trigger \`${triggerPrefix}${trigger}\` does not exist in this channel.`,
+            flags: ["Ephemeral"],
+          });
+          return;
+        }
+
+        const rawResponse = decodeLineBreaks(command.currentResponse);
+        const charCount = command.currentResponse.length;
+        const createdUnix = Math.max(0, Math.floor(command.createdAt / 1000));
+        const updatedUnix = Math.max(0, Math.floor(command.updatedAt / 1000));
+
+        const header = `📄 **Trigger Info: \`${triggerPrefix}${trigger}\`**\n\n`;
+        const footer =
+          `\n**Characters:** ${charCount}/${DISCORD_MESSAGE_LIMIT}\n` +
+          `**Created by:** <@${command.createdByUserId}> — <t:${createdUnix}:f>\n` +
+          `**Last edited by:** <@${command.updatedByUserId}> — <t:${updatedUnix}:f>`;
+
+        // Code block wrapping adds: "**Response (raw):**\n```\n" + "\n```"
+        const codeBlockPrefix = "**Response (raw):**\n```\n";
+        const codeBlockSuffix = "\n```";
+        const overhead =
+          header.length +
+          codeBlockPrefix.length +
+          codeBlockSuffix.length +
+          footer.length;
+        const maxRawLength = DISCORD_MESSAGE_LIMIT - overhead;
+
+        let responseBlock: string;
+        if (rawResponse.length <= maxRawLength) {
+          responseBlock = `${codeBlockPrefix}${rawResponse}${codeBlockSuffix}`;
+        } else {
+          const truncationNote = "… (truncated)";
+          const truncated = rawResponse.slice(
+            0,
+            maxRawLength - truncationNote.length,
+          );
+          responseBlock = `${codeBlockPrefix}${truncated}${truncationNote}${codeBlockSuffix}`;
+        }
+
+        const infoMessage = `${header}${responseBlock}${footer}`;
+
+        await interaction.reply({
+          content: infoMessage,
           flags: ["Ephemeral"],
         });
         break;

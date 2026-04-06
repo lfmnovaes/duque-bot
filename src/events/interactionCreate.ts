@@ -30,10 +30,17 @@ export async function handleInteractionCreate(
       flags: ["Ephemeral" as const],
     };
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(reply);
-    } else {
-      await interaction.reply(reply);
+    try {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(reply);
+      } else {
+        await interaction.reply(reply);
+      }
+    } catch (replyError) {
+      console.error(
+        `[interaction] Failed to send error reply for /${interaction.commandName}:`,
+        replyError,
+      );
     }
   }
 }

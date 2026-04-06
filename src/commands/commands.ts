@@ -1,9 +1,8 @@
 import { SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { getConvexClient } from "../services/convex.js";
+import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
 import type { SlashCommand } from "../types/index.js";
-
-const DISCORD_MESSAGE_LIMIT = 2000;
 
 type CommandListItem = {
   trigger: string;
@@ -113,29 +112,7 @@ export const commandsCommand: SlashCommand = {
   },
 };
 
-function splitMessage(text: string, maxLength: number): string[] {
-  if (text.length <= maxLength) return [text];
-
-  const chunks: string[] = [];
-  let current = text;
-
-  while (current.length > maxLength) {
-    let splitIndex = current.lastIndexOf("\n", maxLength);
-    if (splitIndex <= 0) {
-      splitIndex = maxLength;
-    }
-    chunks.push(current.slice(0, splitIndex));
-    current = current.slice(splitIndex).trimStart();
-  }
-
-  if (current.length > 0) {
-    chunks.push(current);
-  }
-
-  return chunks;
-}
-
 function formatDiscordDate(timestampMs: number): string {
-  const unix = Math.floor(timestampMs / 1000);
+  const unix = Math.max(0, Math.floor(timestampMs / 1000));
   return `<t:${unix}:d>`;
 }

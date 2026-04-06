@@ -5,6 +5,7 @@ import { mutation, query } from "./_generated/server.js";
 import { logDbWrite } from "./logging.js";
 
 const COMMAND_HISTORY_MAX_ENTRIES = 1000;
+const COMMAND_RESPONSE_MAX_LENGTH = 4000;
 const COMMAND_HISTORY_META_KEY = "command_history_count";
 const REMOVE_ALL_BATCH_SIZE = 100;
 
@@ -71,7 +72,7 @@ async function persistHistoryCounterState(
   ctx: MutationCtx,
   state: HistoryCounterState | null,
 ): Promise<void> {
-  if (!state || !state.dirty) return;
+  if (!state?.dirty) return;
 
   await ctx.db.patch(state.metaId, {
     commandHistoryCount: state.count,
@@ -218,6 +219,13 @@ export const addCommand = mutation({
     guildId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (args.trigger.trim().length === 0) {
+      return { success: false, reason: "empty_trigger" } as const;
+    }
+    if (args.response.length > COMMAND_RESPONSE_MAX_LENGTH) {
+      return { success: false, reason: "response_too_long" } as const;
+    }
+
     const existing = await ctx.db
       .query("customCommands")
       .withIndex("by_channel_trigger", (q) =>
@@ -282,6 +290,10 @@ export const editCommand = mutation({
     guildId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (args.newResponse.length > COMMAND_RESPONSE_MAX_LENGTH) {
+      return { success: false, reason: "response_too_long" } as const;
+    }
+
     const existing = await ctx.db
       .query("customCommands")
       .withIndex("by_channel_trigger", (q) =>

@@ -1,6 +1,7 @@
 import type { Message } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { getConvexClient } from "../services/convex.js";
+import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
 
 /**
  * Handle a potential prefix-trigger message.
@@ -18,7 +19,10 @@ export async function handleTrigger(message: Message): Promise<void> {
     if (resolved) {
       const channel = message.channel;
       if ("send" in channel && typeof channel.send === "function") {
-        await channel.send(resolved.response);
+        const chunks = splitMessage(resolved.response, DISCORD_MESSAGE_LIMIT);
+        for (const chunk of chunks) {
+          await channel.send(chunk);
+        }
       }
     }
   } catch (error) {
