@@ -1,4 +1,8 @@
-import { type ChatInputCommandInteraction, GuildMember } from "discord.js";
+import {
+  type ChatInputCommandInteraction,
+  GuildMember,
+  MessageFlags,
+} from "discord.js";
 import { canManageCommands, isAdmin } from "./permissions.js";
 
 /**
@@ -11,7 +15,7 @@ export async function requireCommandPermission(
   if (!interaction.inGuild()) {
     await interaction.reply({
       content: "❌ This command can only be used in a server channel.",
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
     return false;
   }
@@ -27,7 +31,7 @@ export async function requireCommandPermission(
     await interaction.reply({
       content:
         "❌ You don't have permission to manage commands in this channel. Ask an admin to add your role with `/roles add`.",
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
     return false;
   }
@@ -45,7 +49,7 @@ export async function requireAdminPermission(
   if (!interaction.inGuild()) {
     await interaction.reply({
       content: "❌ This command can only be used in a server channel.",
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
     return false;
   }
@@ -57,7 +61,7 @@ export async function requireAdminPermission(
   if (!isAdmin(member, userId)) {
     await interaction.reply({
       content: "❌ Only server administrators can manage roles.",
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
     return false;
   }

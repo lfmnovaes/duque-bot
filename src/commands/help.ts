@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { MessageFlags, SlashCommandBuilder } from "discord.js";
 import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
 import type { SlashCommand } from "../types/index.js";
 
@@ -20,8 +20,8 @@ export const helpCommand: SlashCommand = {
       "• `/command add|edit|remove` - Create, update, or delete custom commands for this channel.\n" +
       "• `/command info` - View details about a trigger (response, character count, who created/edited and when).\n" +
       "• `/commands` - List custom commands from this channel with metadata (who created/updated and when).\n" +
-      "• `/roles add|remove|list` - Manage editor roles for command management in this channel (admin only).\n" +
-      "• `/trigger` - Set the one-character trigger prefix for this channel (admin only).\n" +
+      "• `/roles add|remove|list` - Manage editor roles for command management in this channel (Admins only).\n" +
+      "• `/trigger` - Set the one-character trigger prefix for this channel (Admins only).\n" +
       "• `/help` - Show this command reference.\n\n" +
       "Tip: use the optional `dm` flag on `/help` and `/commands` to receive the output in DMs.";
 
@@ -38,13 +38,13 @@ export const helpCommand: SlashCommand = {
             chunks.length === 1
               ? "✅ Help sent to your DMs."
               : `✅ Help sent to your DMs in ${chunks.length} messages.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
       } catch {
         await interaction.reply({
           content:
             "❌ I couldn't send you a DM. Please check your DM privacy settings.",
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
       }
       return;
@@ -52,12 +52,12 @@ export const helpCommand: SlashCommand = {
 
     await interaction.reply({
       content: chunks[0],
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
     for (const chunk of chunks.slice(1)) {
       await interaction.followUp({
         content: chunk,
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

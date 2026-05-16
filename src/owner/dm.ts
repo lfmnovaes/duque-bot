@@ -1,13 +1,15 @@
 import {
   ChannelType,
+  escapeMarkdown,
   type Message,
   OAuth2Scopes,
   PermissionFlagsBits,
 } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
-import { env } from "../config/env.js";
+import { detectDependencyVersion } from "../config/dependencies.js";
+import { APP_VERSION } from "../config/version.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
-import { splitMessage } from "../services/message.js";
+import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
 
 const OWNER_PREFIX = "!owner";
 
@@ -34,11 +36,11 @@ export async function handleOwnerDM(message: Message): Promise<void> {
     case "unblacklist-server":
       await handleUnblacklistServer(message, args[1]);
       break;
-    case "leave-channel":
-      await handleLeaveChannel(message, args[1]);
-      break;
     case "invite":
       await handleInvite(message);
+      break;
+    case "status":
+      await handleStatus(message);
       break;
     case "approve":
       await handleUnblacklistServer(message, args[1], "approve");
@@ -64,7 +66,7 @@ async function handleServers(message: Message): Promise<void> {
   const lines: string[] = [];
 
   for (const guild of guilds.values()) {
-    lines.push(`\n🏠 **${guild.name}** (\`${guild.id}\`)`);
+    lines.push(`\n🏠 **${escapeMarkdown(guild.name)}** (\`${guild.id}\`)`);
     lines.push(`   Members: ${guild.memberCount}`);
 
     // List text channels the bot can see
@@ -76,7 +78,7 @@ async function handleServers(message: Message): Promise<void> {
 
     if (textChannels.size > 0) {
       const channelList = textChannels
-        .map((ch) => `   • #${ch.name} (\`${ch.id}\`)`)
+        .map((ch) => `   • #${escapeMarkdown(ch.name)} (\`${ch.id}\`)`)
         .join("\n");
       lines.push(channelList);
     }
@@ -115,8 +117,26 @@ async function handleForceLeaveServer(
 
   try {
     await guild.leave();
+    const convex = getConvexClient();
+    const result = await mutationWithLog(
+      "guilds.blacklistGuild",
+      {
+        writeType: "insert_or_update",
+        guildId,
+        guildName,
+      },
+      () =>
+        convex.mutation(api.guilds.blacklistGuild, {
+          guildId,
+          guildName,
+        }),
+    );
+
+    const blacklistStatus = result.alreadyBlacklisted
+      ? "It was already blacklisted."
+      : "It has also been blacklisted for future joins.";
     await message.reply(
-      `✅ Force-left server **${guildName}** (\`${guildId}\`).`,
+      `✅ Force-left server **${escapeMarkdown(guildName)}** (\`${guildId}\`). ${blacklistStatus}`,
     );
   } catch (error) {
     console.error("[owner] Error force-leaving server:", error);
@@ -206,62 +226,6 @@ async function handleUnblacklistServer(
   }
 }
 
-async function handleLeaveChannel(
-  message: Message,
-  channelId: string | undefined,
-): Promise<void> {
-  if (!channelId) {
-    await message.reply("❌ Usage: `!owner leave-channel <channelId>`");
-    return;
-  }
-
-  try {
-    const convex = getConvexClient();
-
-    // Remove commands in batches to avoid large single-mutation workloads.
-    let totalDeleted = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const batch = await mutationWithLog(
-        "commands.removeAllByChannel",
-        {
-          writeType: "batch_delete",
-          channelId,
-          actorUserId: env.BOT_OWNER_ID,
-        },
-        () =>
-          convex.mutation(api.commands.removeAllByChannel, {
-            channelId,
-            actorUserId: env.BOT_OWNER_ID,
-          }),
-      );
-      totalDeleted += batch.deleted;
-      hasMore = batch.hasMore;
-    }
-
-    // Remove channel config after commands are cleaned.
-    await mutationWithLog(
-      "channelConfig.deleteConfig",
-      {
-        writeType: "delete",
-        channelId,
-      },
-      () =>
-        convex.mutation(api.channelConfig.deleteConfig, {
-          channelId,
-        }),
-    );
-
-    await message.reply(
-      `✅ Cleared channel \`${channelId}\`: removed config and ${totalDeleted} command(s).`,
-    );
-  } catch (error) {
-    console.error("[owner] Error clearing channel:", error);
-    await message.reply(`❌ Failed to clear channel \`${channelId}\`.`);
-  }
-}
-
 async function handleInvite(message: Message): Promise<void> {
   const invite = message.client.generateInvite({
     scopes: [OAuth2Scopes.Bot, OAuth2Scopes.ApplicationsCommands],
@@ -276,6 +240,44 @@ async function handleInvite(message: Message): Promise<void> {
   await message.reply(`🔗 **Bot Invite Link:**\n${invite}`);
 }
 
+async function handleStatus(message: Message): Promise<void> {
+  const memory = process.memoryUsage();
+  const resourceUsage = process.resourceUsage();
+  const constrainedMemory = process.constrainedMemory?.();
+  const availableMemory = process.availableMemory?.();
+
+  const lines = [
+    "🩺 **Bot Status**",
+    "",
+    `Version: \`${APP_VERSION}\``,
+    `Node: \`${process.version}\``,
+    `discord.js: \`${detectDependencyVersion("discord.js")}\``,
+    `Convex: \`${detectDependencyVersion("convex")}\``,
+    `Uptime: \`${formatDuration(process.uptime())}\``,
+    `Guilds: \`${message.client.guilds.cache.size}\``,
+    `WebSocket ping: \`${message.client.ws.ping}ms\``,
+    "Message content intent: `enabled`",
+    "",
+    "**Memory**",
+    `RSS: \`${formatBytes(memory.rss)}\``,
+    `Heap: \`${formatBytes(memory.heapUsed)} / ${formatBytes(memory.heapTotal)}\``,
+    `External: \`${formatBytes(memory.external)}\``,
+    `Array buffers: \`${formatBytes(memory.arrayBuffers)}\``,
+    `Available: \`${formatOptionalBytes(availableMemory)}\``,
+    `Constrained: \`${formatOptionalBytes(constrainedMemory)}\``,
+    "",
+    "**Resource usage**",
+    `User CPU: \`${formatMicroseconds(resourceUsage.userCPUTime)}\``,
+    `System CPU: \`${formatMicroseconds(resourceUsage.systemCPUTime)}\``,
+    `Max RSS: \`${formatKilobytes(resourceUsage.maxRSS)}\``,
+  ];
+
+  const chunks = splitMessage(lines.join("\n"), DISCORD_MESSAGE_LIMIT);
+  for (const chunk of chunks) {
+    await message.reply(chunk);
+  }
+}
+
 async function handleHelp(message: Message): Promise<void> {
   await message.reply(
     `📖 **Owner Commands:**\n\n` +
@@ -284,9 +286,51 @@ async function handleHelp(message: Message): Promise<void> {
       `\`!owner leave-server <guildId>\` – Alias for force-leave-server\n` +
       `\`!owner blacklist-server <guildId>\` – Block future joins for a server\n` +
       `\`!owner unblacklist-server <guildId>\` – Allow future joins again\n` +
-      `\`!owner leave-channel <channelId>\` – Clear a channel's config and commands\n` +
       `\`!owner invite\` – Generate bot invite link\n` +
+      `\`!owner status\` – Show runtime diagnostics\n` +
       `\`!owner approve <guildId>\` – Alias for unblacklist-server\n` +
       `\`!owner help\` – Show this message`,
   );
+}
+
+function formatBytes(bytes: number): string {
+  const units = ["B", "KiB", "MiB", "GiB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${value.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatOptionalBytes(bytes: number | undefined): string {
+  if (bytes === undefined || bytes === 0) return "unavailable";
+  return formatBytes(bytes);
+}
+
+function formatKilobytes(kilobytes: number): string {
+  return formatBytes(kilobytes * 1024);
+}
+
+function formatMicroseconds(microseconds: number): string {
+  return `${(microseconds / 1000).toFixed(1)}ms`;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const seconds = Math.floor(totalSeconds);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || parts.length > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length > 0) parts.push(`${minutes}m`);
+  parts.push(`${remainingSeconds}s`);
+
+  return parts.join(" ");
 }

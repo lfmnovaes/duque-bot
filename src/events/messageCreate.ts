@@ -1,6 +1,7 @@
 import type { Message } from "discord.js";
 import { ChannelType } from "discord.js";
 import { env } from "../config/env.js";
+import { startsWithAllowedTriggerPrefix } from "../config/triggers.js";
 import { handleOwnerDM } from "../owner/dm.js";
 import { handleTrigger } from "../triggers/message.js";
 
@@ -17,7 +18,7 @@ export async function handleMessageCreate(message: Message): Promise<void> {
   }
 
   // Handle prefix-trigger messages in guild channels
-  if (message.inGuild()) {
+  if (message.inGuild() && startsWithAllowedTriggerPrefix(message.content)) {
     await handleTrigger(message);
   }
 }

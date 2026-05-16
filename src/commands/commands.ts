@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { MessageFlags, SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { getConvexClient } from "../services/convex.js";
 import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
@@ -10,6 +10,11 @@ type CommandListItem = {
   createdByUserId: string;
   updatedAt: number;
   updatedByUserId: string;
+};
+
+type CommandListResult = {
+  commands: CommandListItem[];
+  limit: number;
 };
 
 export const commandsCommand: SlashCommand = {
@@ -27,7 +32,7 @@ export const commandsCommand: SlashCommand = {
     if (!interaction.inGuild()) {
       await interaction.reply({
         content: "❌ This command can only be used in a server channel.",
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -36,17 +41,18 @@ export const commandsCommand: SlashCommand = {
     const channelId = interaction.channelId;
     const sendViaDM = interaction.options.getBoolean("dm") ?? false;
 
-    const [commands, config] = await Promise.all([
+    const [commandList, config] = await Promise.all([
       convex.query(api.commands.listCommands, { channelId }),
       convex.query(api.channelConfig.getConfig, { channelId }),
     ]);
+    const { commands, limit } = commandList as CommandListResult;
     const triggerPrefix = config?.triggerPrefix ?? "!";
 
     if (commands.length === 0) {
       await interaction.reply({
         content:
           "📭 No commands registered in this channel. Use `/command add` to create one.",
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -65,7 +71,7 @@ export const commandsCommand: SlashCommand = {
     const serverName = interaction.guild?.name ?? interaction.guildId;
 
     const message =
-      `📋 **Listing all commands from '${serverName}' (${commands.length})**\n\n` +
+      `📋 **Listing commands from '${serverName}' (${commands.length}/${limit})**\n\n` +
       list;
     const chunks = splitMessage(message, DISCORD_MESSAGE_LIMIT);
 
@@ -83,24 +89,24 @@ export const commandsCommand: SlashCommand = {
             chunks.length === 1
               ? "✅ Command list sent to your DMs."
               : `✅ Command list sent to your DMs in ${chunks.length} messages.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
       } catch {
         await interaction.reply({
           content:
             "❌ I couldn't send you a DM. Please check your DM privacy settings.",
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
       }
     } else {
       await interaction.reply({
         content: chunks[0],
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       for (const chunk of chunks.slice(1)) {
         await interaction.followUp({
           content: chunk,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
       }
       if (chunks.length > 1) {

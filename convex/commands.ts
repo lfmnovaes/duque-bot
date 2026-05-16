@@ -6,7 +6,7 @@ import { logDbWrite } from "./logging.js";
 
 const COMMAND_HISTORY_PER_CHANNEL_LIMIT = 100;
 const COMMAND_RESPONSE_MAX_LENGTH = 4000;
-const REMOVE_ALL_BATCH_SIZE = 100;
+const COMMANDS_PER_GUILD_LIMIT = 250;
 
 type CommandHistoryAction = "CREATE" | "UPDATE" | "DELETE";
 
@@ -24,7 +24,7 @@ type CommandHistoryInsert = {
 };
 
 type HistoryCounterState = {
-  metaId: Id<"appMeta">;
+  statId: Id<"channelStats">;
   count: number;
   dirty: boolean;
 };
@@ -38,41 +38,48 @@ async function ensureHistoryCounterState(
     return currentState;
   }
 
-  const metaKey = `command_history_count_${channelId}`;
-
-  const existingMeta = await ctx.db
-    .query("appMeta")
-    .withIndex("by_key", (q) => q.eq("key", metaKey))
+  const existingStats = await ctx.db
+    .query("channelStats")
+    .withIndex("by_channel", (q) => q.eq("channelId", channelId))
     .unique();
 
-  if (existingMeta) {
+  if (existingStats) {
     return {
-      metaId: existingMeta._id,
-      count: existingMeta.commandHistoryCount,
+      statId: existingStats._id,
+      count: existingStats.commandHistoryCount,
       dirty: false,
     };
   }
 
-  const initialCount = (
-    await ctx.db
-      .query("commandHistory")
-      .withIndex("by_channel_timestamp", (q) => q.eq("channelId", channelId))
-      .collect()
-  ).length;
+  const legacyMetaKey = `command_history_count_${channelId}`;
+  const legacyMeta = await ctx.db
+    .query("appMeta")
+    .withIndex("by_key", (q) => q.eq("key", legacyMetaKey))
+    .unique();
 
-  const metaId = await ctx.db.insert("appMeta", {
-    key: metaKey,
+  const initialCount =
+    legacyMeta?.commandHistoryCount ??
+    (
+      await ctx.db
+        .query("commandHistory")
+        .withIndex("by_channel_timestamp", (q) => q.eq("channelId", channelId))
+        .take(COMMAND_HISTORY_PER_CHANNEL_LIMIT + 1)
+    ).length;
+
+  const statId = await ctx.db.insert("channelStats", {
+    channelId,
     commandHistoryCount: initialCount,
     updatedAt: Date.now(),
   });
-  logDbWrite("appMeta", "insert", {
-    metaId,
-    key: metaKey,
+  logDbWrite("channelStats", "insert", {
+    statId,
+    channelId,
     commandHistoryCount: initialCount,
+    migratedFromLegacyMeta: legacyMeta !== null,
   });
 
   return {
-    metaId,
+    statId,
     count: initialCount,
     dirty: false,
   };
@@ -85,15 +92,13 @@ async function persistHistoryCounterState(
 ): Promise<void> {
   if (!state?.dirty) return;
 
-  const metaKey = `command_history_count_${channelId}`;
-
-  await ctx.db.patch(state.metaId, {
+  await ctx.db.patch(state.statId, {
     commandHistoryCount: state.count,
     updatedAt: Date.now(),
   });
-  logDbWrite("appMeta", "patch", {
-    metaId: state.metaId,
-    key: metaKey,
+  logDbWrite("channelStats", "patch", {
+    statId: state.statId,
+    channelId,
     commandHistoryCount: state.count,
   });
   state.dirty = false;
@@ -220,16 +225,19 @@ export const listCommands = query({
   handler: async (ctx, args) => {
     const commands = await ctx.db
       .query("customCommands")
-      .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
-      .collect();
+      .withIndex("by_channel_trigger", (q) => q.eq("channelId", args.channelId))
+      .take(COMMANDS_PER_GUILD_LIMIT);
 
-    return commands.map((command) => ({
-      trigger: command.trigger,
-      createdAt: command.createdAt,
-      createdByUserId: command.createdByUserId,
-      updatedAt: command.updatedAt,
-      updatedByUserId: command.updatedByUserId,
-    }));
+    return {
+      commands: commands.map((command) => ({
+        trigger: command.trigger,
+        createdAt: command.createdAt,
+        createdByUserId: command.createdByUserId,
+        updatedAt: command.updatedAt,
+        updatedByUserId: command.updatedByUserId,
+      })),
+      limit: COMMANDS_PER_GUILD_LIMIT,
+    };
   },
 });
 
@@ -258,6 +266,21 @@ export const addCommand = mutation({
 
     if (existing) {
       return { success: false, reason: "already_exists" } as const;
+    }
+
+    if (args.guildId) {
+      const guildCommands = await ctx.db
+        .query("customCommands")
+        .withIndex("by_guild", (q) => q.eq("guildId", args.guildId))
+        .take(COMMANDS_PER_GUILD_LIMIT);
+
+      if (guildCommands.length >= COMMANDS_PER_GUILD_LIMIT) {
+        return {
+          success: false,
+          reason: "guild_command_limit_reached",
+          limit: COMMANDS_PER_GUILD_LIMIT,
+        } as const;
+      }
     }
 
     const now = Date.now();
@@ -423,62 +446,6 @@ export const removeCommand = mutation({
 
     await persistHistoryCounterState(ctx, historyCounter, args.channelId);
     return { success: true } as const;
-  },
-});
-
-export const removeAllByChannel = mutation({
-  args: {
-    channelId: v.string(),
-    actorUserId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const commands = await ctx.db
-      .query("customCommands")
-      .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
-      .take(REMOVE_ALL_BATCH_SIZE);
-
-    const now = Date.now();
-    let historyCounter: HistoryCounterState | null = null;
-
-    for (const cmd of commands) {
-      ({ state: historyCounter } = await insertCommandHistoryCapped(
-        ctx,
-        historyCounter,
-        {
-          channelId: args.channelId,
-          trigger: cmd.trigger,
-          action: "DELETE",
-          previousResponse: cmd.currentResponse,
-          previousCount: cmd.count ?? 0,
-          actorUserId: args.actorUserId,
-          timestamp: now,
-        },
-        {
-          previousResponseLength: cmd.currentResponse.length,
-        },
-      ));
-
-      await ctx.db.delete(cmd._id);
-      logDbWrite("customCommands", "delete", {
-        commandId: cmd._id,
-        channelId: args.channelId,
-        trigger: cmd.trigger,
-        actorUserId: args.actorUserId,
-      });
-    }
-
-    await persistHistoryCounterState(ctx, historyCounter, args.channelId);
-
-    let hasMore = false;
-    if (commands.length === REMOVE_ALL_BATCH_SIZE) {
-      const remaining = await ctx.db
-        .query("customCommands")
-        .withIndex("by_channel", (q) => q.eq("channelId", args.channelId))
-        .take(1);
-      hasMore = remaining.length > 0;
-    }
-
-    return { deleted: commands.length, hasMore } as const;
   },
 });
 

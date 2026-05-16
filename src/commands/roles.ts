@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { MessageFlags, SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireAdminPermission } from "../services/auth.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
@@ -7,11 +7,11 @@ import type { SlashCommand } from "../types/index.js";
 export const rolesCommand: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName("roles")
-    .setDescription("Manage editor roles for this channel (admin only)")
+    .setDescription("Manage editor roles for this channel (Admins only)")
     .addSubcommand((sub) =>
       sub
         .setName("add")
-        .setDescription("Add an editor role for this channel")
+        .setDescription("Add an editor role for this channel (Admins only)")
         .addRoleOption((opt) =>
           opt
             .setName("role")
@@ -22,7 +22,7 @@ export const rolesCommand: SlashCommand = {
     .addSubcommand((sub) =>
       sub
         .setName("remove")
-        .setDescription("Remove an editor role from this channel")
+        .setDescription("Remove an editor role from this channel (Admins only)")
         .addRoleOption((opt) =>
           opt
             .setName("role")
@@ -31,7 +31,9 @@ export const rolesCommand: SlashCommand = {
         ),
     )
     .addSubcommand((sub) =>
-      sub.setName("list").setDescription("List editor roles for this channel"),
+      sub
+        .setName("list")
+        .setDescription("List editor roles for this channel (Admins only)"),
     ),
 
   async execute(interaction) {
@@ -45,7 +47,7 @@ export const rolesCommand: SlashCommand = {
     if (!guildId) {
       await interaction.reply({
         content: "❌ This command can only be used in a server channel.",
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -73,14 +75,14 @@ export const rolesCommand: SlashCommand = {
         if (!result.success) {
           await interaction.reply({
             content: `⚠️ Role **${role.name}** is already an editor role for this channel.`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
         await interaction.reply({
           content: `✅ Role **${role.name}** can now manage commands in this channel.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -109,14 +111,14 @@ export const rolesCommand: SlashCommand = {
               : `Role **${role.name}** is not an editor role for this channel.`;
           await interaction.reply({
             content: `❌ ${reason}`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
         await interaction.reply({
           content: `✅ Role **${role.name}** can no longer manage commands in this channel.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -130,7 +132,7 @@ export const rolesCommand: SlashCommand = {
           await interaction.reply({
             content:
               "📭 No editor roles configured for this channel. Only admins can manage commands.",
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
@@ -141,7 +143,7 @@ export const rolesCommand: SlashCommand = {
 
         await interaction.reply({
           content: `📋 **Editor roles for this channel:**\n\n${roleList}`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }

@@ -10,14 +10,7 @@ import { handleReady } from "./events/ready.js";
 client.once("clientReady", handleReady);
 client.on("interactionCreate", handleInteractionCreate);
 client.on("guildCreate", handleGuildCreate);
-
-if (env.ENABLE_MESSAGE_CONTENT_INTENT) {
-  client.on("messageCreate", handleMessageCreate);
-} else {
-  console.warn(
-    "[startup] Message Content intent disabled. !trigger and owner DM commands are off.",
-  );
-}
+client.on("messageCreate", handleMessageCreate);
 
 // ─── Error handling ───
 client.on("error", (error) => {
@@ -44,7 +37,7 @@ client.login(env.DISCORD_TOKEN).catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("Used disallowed intents")) {
     console.error(
-      "[startup] Discord rejected privileged intents. Either enable Message Content Intent in the Discord Developer Portal, or set ENABLE_MESSAGE_CONTENT_INTENT=false in .env.",
+      "[startup] Discord rejected privileged intents. Enable Message Content Intent in the Discord Developer Portal before starting the bot.",
     );
   }
   throw error;

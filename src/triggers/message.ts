@@ -1,4 +1,4 @@
-import type { Message } from "discord.js";
+import { type Message, userMention } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { getConvexClient } from "../services/convex.js";
 import { DISCORD_MESSAGE_LIMIT, splitMessage } from "../services/message.js";
@@ -24,10 +24,9 @@ export async function handleTrigger(message: Message): Promise<void> {
       if ("send" in channel && typeof channel.send === "function") {
         let responseText = resolved.response;
 
-        const userName = message.member?.displayName ?? message.author.username;
         const replacements: Record<string, string> = {
           "{count}": String(resolved.count),
-          "{user}": userName,
+          "{user}": userMention(message.author.id),
         };
 
         for (const [key, value] of Object.entries(replacements)) {

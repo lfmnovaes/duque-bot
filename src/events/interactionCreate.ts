@@ -1,4 +1,4 @@
-import type { Interaction } from "discord.js";
+import { type Interaction, MessageFlags } from "discord.js";
 import { commands } from "../commands/index.js";
 
 export async function handleInteractionCreate(
@@ -12,7 +12,7 @@ export async function handleInteractionCreate(
     console.warn(`[interaction] Unknown command: ${interaction.commandName}`);
     await interaction.reply({
       content: "❌ Unknown command.",
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -27,7 +27,7 @@ export async function handleInteractionCreate(
 
     const reply = {
       content: "❌ An error occurred while executing this command.",
-      flags: ["Ephemeral" as const],
+      flags: MessageFlags.Ephemeral as const,
     };
 
     try {

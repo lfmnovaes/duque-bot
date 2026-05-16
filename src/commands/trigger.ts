@@ -1,16 +1,17 @@
-import { SlashCommandBuilder } from "discord.js";
+import { MessageFlags, SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
+import {
+  ALLOWED_PREFIX_LIST,
+  isAllowedTriggerPrefix,
+} from "../config/triggers.js";
 import { requireAdminPermission } from "../services/auth.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
 import type { SlashCommand } from "../types/index.js";
 
-const ALLOWED_TRIGGER_PREFIX = /^[!@#$%^&*()_+\-=[\]{}|;:,.?~]$/;
-const ALLOWED_PREFIX_LIST = "! @ # $ % ^ & * ( ) _ + - = [ ] { } | ; : , . ? ~";
-
 export const triggerCommand: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName("trigger")
-    .setDescription("Set the trigger prefix for this channel (admin only)")
+    .setDescription("Set the trigger prefix for this channel (Admins only)")
     .addStringOption((opt) =>
       opt
         .setName("prefix")
@@ -25,12 +26,12 @@ export const triggerCommand: SlashCommand = {
     if (!allowed) return;
 
     const prefix = interaction.options.getString("prefix", true).trim();
-    if (!ALLOWED_TRIGGER_PREFIX.test(prefix)) {
+    if (!isAllowedTriggerPrefix(prefix)) {
       await interaction.reply({
         content:
           `❌ Invalid prefix. Use exactly one special character from:\n` +
           `${ALLOWED_PREFIX_LIST}`,
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -39,7 +40,7 @@ export const triggerCommand: SlashCommand = {
     if (!guildId) {
       await interaction.reply({
         content: "❌ This command can only be used in a server channel.",
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -65,7 +66,7 @@ export const triggerCommand: SlashCommand = {
       content:
         `✅ Trigger prefix set to \`${prefix}\` for this channel.\n` +
         `Example: \`${prefix}hello\``,
-      flags: ["Ephemeral"],
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

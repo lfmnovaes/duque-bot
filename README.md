@@ -75,9 +75,8 @@ npm run dev
 1. Go to the **Bot** tab
 2. Click **"Add Bot"**
 3. Under **Token**, click **"Reset Token"** and copy it (this is your `DISCORD_TOKEN`)
-4. Enable **Message Content Intent** only if you want `!trigger` and `!owner ...` DM commands:
-   - ✅ Message Content Intent (required for message-based features)
-   - `ENABLE_MESSAGE_CONTENT_INTENT=true` in your `.env`
+4. Enable **Message Content Intent**:
+   - ✅ Message Content Intent (required for guild message triggers)
 
 ### 3. Configure OAuth2
 
@@ -106,7 +105,7 @@ Owner commands are sent by DM (`!owner ...`), so make sure you have DMs enabled 
 
 - New servers are auto-approved when the bot joins.
 - If a server is blacklisted (`!owner blacklist-server <guildId>`), new joins are rejected and the bot leaves immediately.
-- If the bot was already in a server before blacklisting, it stays there until `!owner force-leave-server <guildId>`.
+- `!owner force-leave-server <guildId>` makes the bot leave immediately and blacklists the server for future joins.
 
 ---
 
@@ -118,7 +117,6 @@ Owner commands are sent by DM (`!owner ...`), so make sure you have DMs enabled 
 | `DISCORD_CLIENT_ID` | Application ID from Discord Developer Portal | ✅ |
 | `CONVEX_URL` | Deployment URL from Convex dashboard | ✅ |
 | `BOT_OWNER_ID` | Discord user ID of the bot owner | ✅ |
-| `ENABLE_MESSAGE_CONTENT_INTENT` | Set `true` to enable `!trigger` and owner DM commands | Optional (default `false`) |
 
 ---
 
@@ -243,22 +241,23 @@ Delete a command from the current channel.
 List all commands registered in the current channel.
 
 - **`dm`** (optional) – Set to `true` to receive the list via DM
+- Servers are limited to **250 commands** total.
 
 ### `/roles add <role>`
 
-Add an editor role for command management in this channel. **Admin only.**
+Add an editor role for command management in this channel. **Admins only.**
 
 ### `/roles remove <role>`
 
-Remove an editor role. **Admin only.**
+Remove an editor role. **Admins only.**
 
 ### `/roles list`
 
-Show current editor roles for this channel.
+Show current editor roles for this channel. **Admins only.**
 
 ### `/trigger <prefix>`
 
-Set the one-character trigger prefix for this channel. **Admin only.**
+Set the one-character trigger prefix for this channel. **Admins only.**
 
 - Allowed characters: `! @ # $ % ^ & * ( ) _ + - = [ ] { } | ; : , . ? ~`
 
@@ -287,12 +286,12 @@ These commands only work when sent as a **DM to the bot** from the configured `B
 | Command | Description |
 |---------|-------------|
 | `!owner servers` | List all servers and channels |
-| `!owner force-leave-server <guildId>` | Force leave a server immediately |
+| `!owner force-leave-server <guildId>` | Force leave and blacklist a server immediately |
 | `!owner leave-server <guildId>` | Alias for `force-leave-server` |
 | `!owner blacklist-server <guildId>` | Blacklist a server for future joins |
 | `!owner unblacklist-server <guildId>` | Remove server blacklist (clear `blacklistedAt`) |
-| `!owner leave-channel <channelId>` | Clear a channel's config and commands |
 | `!owner invite` | Generate bot invite link |
+| `!owner status` | Show runtime diagnostics |
 | `!owner approve <guildId>` | Alias for `unblacklist-server` |
 | `!owner help` | Show command list |
 

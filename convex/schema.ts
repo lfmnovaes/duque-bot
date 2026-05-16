@@ -23,7 +23,8 @@ export default defineSchema({
     updatedByUserId: v.string(),
   })
     .index("by_channel_trigger", ["channelId", "trigger"])
-    .index("by_channel", ["channelId"]),
+    .index("by_channel", ["channelId"])
+    .index("by_guild", ["guildId"]),
 
   commandHistory: defineTable({
     channelId: v.string(),
@@ -50,6 +51,12 @@ export default defineSchema({
     commandHistoryCount: v.number(),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  channelStats: defineTable({
+    channelId: v.string(),
+    commandHistoryCount: v.number(),
+    updatedAt: v.number(),
+  }).index("by_channel", ["channelId"]),
 
   approvedGuilds: defineTable({
     guildId: v.string(),

@@ -1,4 +1,4 @@
-import { GuildMember, SlashCommandBuilder } from "discord.js";
+import { GuildMember, MessageFlags, SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireCommandPermission } from "../services/auth.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
@@ -106,7 +106,7 @@ export const commandCommand: SlashCommand = {
     } else if (!interaction.inGuild()) {
       await interaction.reply({
         content: "❌ This command can only be used in a server channel.",
-        flags: ["Ephemeral"],
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -150,16 +150,24 @@ export const commandCommand: SlashCommand = {
         );
 
         if (!result.success) {
+          if (result.reason === "guild_command_limit_reached") {
+            await interaction.reply({
+              content: `⚠️ This server has reached the command limit (${result.limit}/${result.limit}). Remove an existing command before adding a new one.`,
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
           await interaction.reply({
             content: `⚠️ The command \`${triggerPrefix}${trigger}\` already exists in this channel. Use \`/command edit ${trigger} <new_response>\` to update it.`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
         await interaction.reply({
           content: `✅ Command \`${triggerPrefix}${trigger}\` has been added to this channel.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -195,14 +203,14 @@ export const commandCommand: SlashCommand = {
         if (!result.success) {
           await interaction.reply({
             content: `❌ The command \`${triggerPrefix}${trigger}\` does not exist in this channel. Use \`/command add\` to create it first.`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
         await interaction.reply({
           content: `✅ Command \`${triggerPrefix}${trigger}\` has been updated.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -232,14 +240,14 @@ export const commandCommand: SlashCommand = {
         if (!result.success) {
           await interaction.reply({
             content: `❌ The command \`${triggerPrefix}${trigger}\` does not exist in this channel.`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
         await interaction.reply({
           content: `✅ Command \`${triggerPrefix}${trigger}\` has been removed from this channel.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -258,7 +266,7 @@ export const commandCommand: SlashCommand = {
         if (!command) {
           await interaction.reply({
             content: `❌ The trigger \`${triggerPrefix}${trigger}\` does not exist in this channel.`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
@@ -302,7 +310,7 @@ export const commandCommand: SlashCommand = {
 
         await interaction.reply({
           content: infoMessage,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
@@ -313,7 +321,7 @@ export const commandCommand: SlashCommand = {
         if (!isAdmin(member, userId)) {
           await interaction.reply({
             content: "❌ Only server administrators can edit command counters.",
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
@@ -346,14 +354,14 @@ export const commandCommand: SlashCommand = {
         if (!result.success) {
           await interaction.reply({
             content: `❌ The command \`${triggerPrefix}${trigger}\` does not exist in this channel.`,
-            flags: ["Ephemeral"],
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
         await interaction.reply({
           content: `✅ Command \`${triggerPrefix}${trigger}\` counter has been updated to **${value}**.`,
-          flags: ["Ephemeral"],
+          flags: MessageFlags.Ephemeral,
         });
         break;
       }
