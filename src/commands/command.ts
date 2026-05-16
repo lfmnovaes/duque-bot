@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from "discord.js";
+import { GuildMember, SlashCommandBuilder } from "discord.js";
 import { api } from "../../convex/_generated/api.js";
 import { requireCommandPermission } from "../services/auth.js";
 import { getConvexClient, mutationWithLog } from "../services/convex.js";
@@ -7,6 +7,7 @@ import {
   decodeLineBreaks,
   encodeLineBreaks,
 } from "../services/message.js";
+import { isAdmin } from "../services/permissions.js";
 import type { SlashCommand } from "../types/index.js";
 
 export const commandCommand: SlashCommand = {
@@ -73,6 +74,25 @@ export const commandCommand: SlashCommand = {
             .setDescription("The trigger word to inspect")
             .setRequired(true)
             .setMaxLength(50),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("editcount")
+        .setDescription("Edit the call counter of a command (Admins only)")
+        .addStringOption((opt) =>
+          opt
+            .setName("trigger")
+            .setDescription("The trigger word")
+            .setRequired(true)
+            .setMaxLength(50),
+        )
+        .addIntegerOption((opt) =>
+          opt
+            .setName("value")
+            .setDescription("The new counter value")
+            .setRequired(true)
+            .setMinValue(0),
         ),
     ),
 
@@ -245,12 +265,14 @@ export const commandCommand: SlashCommand = {
 
         const rawResponse = decodeLineBreaks(command.currentResponse);
         const charCount = command.currentResponse.length;
+        const currentCount = command.count ?? 0;
         const createdUnix = Math.max(0, Math.floor(command.createdAt / 1000));
         const updatedUnix = Math.max(0, Math.floor(command.updatedAt / 1000));
 
         const header = `📄 **Trigger Info: \`${triggerPrefix}${trigger}\`**\n\n`;
         const footer =
-          `\n**Characters:** ${charCount}/${DISCORD_MESSAGE_LIMIT}\n` +
+          `\n**Uses:** ${currentCount}\n` +
+          `**Characters:** ${charCount}/${DISCORD_MESSAGE_LIMIT}\n` +
           `**Created by:** <@${command.createdByUserId}> — <t:${createdUnix}:f>\n` +
           `**Last edited by:** <@${command.updatedByUserId}> — <t:${updatedUnix}:f>`;
 
@@ -280,6 +302,57 @@ export const commandCommand: SlashCommand = {
 
         await interaction.reply({
           content: infoMessage,
+          flags: ["Ephemeral"],
+        });
+        break;
+      }
+
+      case "editcount": {
+        const member =
+          interaction.member instanceof GuildMember ? interaction.member : null;
+        if (!isAdmin(member, userId)) {
+          await interaction.reply({
+            content: "❌ Only server administrators can edit command counters.",
+            flags: ["Ephemeral"],
+          });
+          return;
+        }
+
+        const trigger = interaction.options
+          .getString("trigger", true)
+          .toLowerCase()
+          .trim();
+        const value = interaction.options.getInteger("value", true);
+
+        const result = await mutationWithLog(
+          "commands.editCommandCount",
+          {
+            writeType: "update",
+            channelId,
+            trigger,
+            actorUserId: userId,
+            newCount: value,
+          },
+          () =>
+            convex.mutation(api.commands.editCommandCount, {
+              channelId,
+              trigger,
+              newCount: value,
+              actorUserId: userId,
+              guildId,
+            }),
+        );
+
+        if (!result.success) {
+          await interaction.reply({
+            content: `❌ The command \`${triggerPrefix}${trigger}\` does not exist in this channel.`,
+            flags: ["Ephemeral"],
+          });
+          return;
+        }
+
+        await interaction.reply({
+          content: `✅ Command \`${triggerPrefix}${trigger}\` counter has been updated to **${value}**.`,
           flags: ["Ephemeral"],
         });
         break;

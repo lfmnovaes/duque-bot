@@ -16,6 +16,7 @@ export default defineSchema({
     guildId: v.optional(v.string()),
     trigger: v.string(),
     currentResponse: v.string(),
+    count: v.optional(v.number()),
     createdAt: v.number(),
     createdByUserId: v.string(),
     updatedAt: v.number(),
@@ -35,6 +36,8 @@ export default defineSchema({
     ),
     previousResponse: v.optional(v.string()),
     newResponse: v.optional(v.string()),
+    previousCount: v.optional(v.number()),
+    newCount: v.optional(v.number()),
     actorUserId: v.string(),
     timestamp: v.number(),
   })
